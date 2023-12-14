@@ -1,40 +1,18 @@
-import pandas
-import sqlite3
+import boto3
 import uuid
-from urllib.parse import unquote_plus
+import json
 from urllib.request import urlretrieve
 import os
-import csv
+import awswrangler as wr
+import pandas as pd
 from zipfile import ZipFile
 
-# No AWS integration, test functions locally
+ssm_client = boto3.client("ssm")
 
 class SourceFileError(Exception):
     def __init__(self, message="Source file is incorrect or damaged."):
         self.message = message
         super().__init__(self.message)
-
-
-def extract_to_csv(database_path, query):
-    # Create a database connection to the SQLite database
-    with sqlite3.connect(database_path) as conn:
-        # Create a pandas dataframe with required columns
-        df = pandas.read_sql(query, conn)
-        # Write the dataframe as a CSV file
-        df.to_csv(f"{database_path}.CSV", index=False)
-    print(f"Successfully extracted from DB {database_path} to CSV")
-    return f"{database_path}.CSV"
-
-
-def convert_tsv_to_csv(file_path, skiprows, column_names, separator, header=None):
-    # Create a pandas dataframe
-    df = pandas.read_csv(
-        file_path, sep=separator, skiprows=skiprows, header=header, names=column_names
-    )
-    # Write the dataframe as a CSV file
-    df.to_csv(f"{file_path}.CSV", quoting=csv.QUOTE_NONNUMERIC, index=False)
-    print(f"Successfully formatted file {file_path} to CSV")
-    return f"{file_path}.csv"
 
 
 def download_and_unzip(url, download_path=".", file_name=uuid.uuid4()):
@@ -69,14 +47,17 @@ def lambda_handler(event, context):
     # get config from SSM
     if "Debug" in event:
         config = event["Debug"]
+        bucket = config["Bucket"]
     else:
-        config = ssm_client.get_parameter(Name="raw-files-download-and-convert")[
-            "Parameter"
-        ]["Value"]
+        config = json.loads(
+            ssm_client.get_parameter(Name="/get-convert-raw-data/lambda-config")[
+                "Parameter"
+            ]["Value"]
+        )
+        bucket_param = ssm_client.get_parameter(Name="/get-convert-raw-data/lyrics-word-bucket/name")['Parameter']['Value']
+        bucket = f"s3://{bucket_param}/csv"
     sources = config["sources"]
-    bucket = config["bucket"]
     download_path = config["download_path"]
-
     processed_raw_files = {}
 
     # process sources info
@@ -88,31 +69,25 @@ def lambda_handler(event, context):
         # download raw from web
         convert_file_name = download_and_unzip(source["url"], download_path, source_id)
         # pre-process conversion
-        upload_file_name = ""
-        if source["format"] == "db":
-            upload_file_name = extract_to_csv(
-                database_path=convert_file_name,
-                query=source["query"],
-            )
-        elif source["format"] == "csv":
-            upload_file_name = convert_tsv_to_csv(
-                file_path=convert_file_name,
+        df = object
+        if source["format"] == "csv":
+            df = pd.read_csv(
+                convert_file_name,
+                sep=source["sep"],
                 skiprows=source["skiprows"],
-                header=source["header"],
-                column_names=source["column_names"],
-                separator=source["sep"],
+                header=None if source["header"] == "None" else source["header"],
+                names=source["column_names"],
             )
         else:
             print(
                 f"Unsupported file format in {convert_file_name}, skipping source {source_id}"
             )
             continue
-        processed_raw_files[source_id] = convert_file_name
-
-    # upload processed CSV files to S3
-    #for source_key, file in processed_raw_files.items:
-    #    s3_client.upload_file(file, bucket, source_key)
-    #    print(f"Successfully uploaded {source_key} to bucket {bucket}")
+        #use wrangler to save dataframe directly to s3
+        wr.s3.to_csv(df, f"{bucket}/{source_id}.csv", index=False)
+        print(f"Successfully uploaded the file {source_id}.csv to {bucket}")
+    print(f"Finished")
+    return True
 
 
 if __name__ == "__main__":
@@ -128,12 +103,6 @@ if __name__ == "__main__":
                 "column_names": ["track_id", "genre"],
             },
             {
-                "name": "lyrycs.db",
-                "url": "http://millionsongdataset.com/sites/default/files/AdditionalFiles/mxm_dataset.db",
-                "format": "db",
-                "query": "select track_id, word, count from lyrics",
-            },
-            {
                 "name": "unstemmed_mapping.txt",
                 "url": "http://millionsongdataset.com/sites/default/files/mxm_reverse_mapping.txt",
                 "format": "csv",
@@ -143,23 +112,16 @@ if __name__ == "__main__":
                 "column_names": ["stemmed", "unstemmed"],
             },
             {
-                "name":"id-track-artist.txt",
-                "url":"http://millionsongdataset.com/sites/default/files/AdditionalFiles/mxm_779k_matches.txt.zip",
-                "format":"csv",
-                "sep":"<SEP>",
-                "skiprows":18,
-                "header":None,
-                "column_names":[
-                    "msd_track_id",
-                    "msd_artist_name",
-                    "msd_title",
-                    "mxm_track_id",
-                    "mxm_artist_name",
-                    "mxm_title"
-                ]
-            }
+                "name": "id-track-artist.txt",
+                "url": "http://millionsongdataset.com/sites/default/files/AdditionalFiles/mxm_779k_matches.txt.zip",
+                "format": "csv",
+                "sep": "<SEP>",
+                "skiprows": 18,
+                "header": None,
+                "column_names": ["msd_track_id","msd_artist_name","msd_title","mxm_track_id","mxm_artist_name","mxm_title"],
+            },
         ],
-        "bucket": "arn:aws:s3:::lyrics-word-dashboard-raw",
+        "bucket": "s3://lyrics-word-dashboard-raw/csv",
         "download_path": "C:/tmp",
     }
 
