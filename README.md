@@ -7,6 +7,7 @@ As a theme I chose a dataset which contains the number of occurances of words in
 Here is an example of Tableau dashboard, built with data from the final database:
 - Average accurance of words 'Friend' and 'Enemy' in songs in each genre (Folk is the friendliest - though, we are not analyzing the sentiment and it's just a word accurance).
 - Most popular words across all genres (Who could have thought that they will be mostly pronouns and prepositions?).
+![Dashboard](https://github.com/s-illia/LyricsWordPipelineExample/blob/main/TABLEAU_DASHBOARD.png?raw=true)
 
 ## Workflow
 
