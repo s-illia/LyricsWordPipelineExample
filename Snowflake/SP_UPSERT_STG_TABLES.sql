@@ -51,8 +51,6 @@ BEGIN
     -- Log the number of affected rows for STG_SONGS
     SYSTEM$LOG_INFO('Rows affected for STG_SONGS: ' || SQLROWCOUNT);
 
-    -- Similar logging for other tables...
-
     -- Update STG_LYRICS from SRC_LYRICS
     MERGE INTO STG_LYRICS AS target
     USING SRC_LYRICS AS source
