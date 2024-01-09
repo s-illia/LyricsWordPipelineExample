@@ -18,13 +18,16 @@ Major transformations are made in Snowflake. I use Streams to capture data chang
 I use 3 schemas to store and process data.
 
 #### Staging
+![Staging](https://github.com/s-illia/LyricsWordPipelineExample/blob/main/SCHEMA_RAW_DATA.png?raw=true)
 Schema `RAW_DATA` is used for staging. External stge is linked with AWS using Integration object. Initial data from S3 is imported into `SRC_*` tables by stored procedure `SP_UPLOAD_SRC_TABLES`. The tables store raw data and are truncated before every load. 
 Stored procedure `SP_UPSERT_STG_TABLES` takes the raw data from SRC_* tables and upserts it into STG_* tables. STG_* tables have correct data types and are SCDs type 2.
 
 #### Normalized DB
+![Normalized](https://github.com/s-illia/LyricsWordPipelineExample/blob/main/SCHEMA_NORMALIZED.png?raw=true)
 Schema `NORMALIZED` stores the data in normalized form in tables named `T_*`. Stored procedure `SP_UPSERT_T_TABLES` is used to populate the tables consuming corresponding streams `STR_STG_*`. The procedure makes grouping by natural keys. Synthetic keys are assigned by sequences. Kes integrity is also enforced with foreign keys. It also stores a view `VW_LYRICS` for more convinient change data capture for the next stage of transformations.
 
 #### Denormalized WH
+![Denormalized](https://github.com/s-illia/LyricsWordPipelineExample/blob/main/SCHEMA_ANALYTICS.png?raw=true)
 Schema `ANALYTICS` contains denormalized data in a star schema. Dimensions are updated by `SP_UPSERT_DIM_TABLES` from `STR_T_*` streams and a fact table is calculated by `SP_CALC_FCT_TABLES` from `STR_VW_LYRICS` stream. As the fact table contains all the data, even if genre is unresolved, view `VW_LYRICS_WORD_COUNTS` is created to get only the data we are interested in.
 
 #### Orchestration
