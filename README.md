@@ -2,7 +2,7 @@
 
 A small practice project to build an ETL data ingestion pipeline, integrating AWS and Snowflake. The initial idea is to create a fully automated pipeline that updates data in the Data Warehouse (DWH) when source datasets are updated. The goal is to have no servers to manage and no manual actions to trigger.
 
-As a theme, I chose a dataset containing the number of occurrences of words inside song lyrics. The Lyrics dataset is enriched with song titles, artist names, and song genres from other datasets. The final database can be used for the analysis of lyrics within songs across different dimensions.
+As a theme, I chose a dataset containing the number of occurrences of words inside more than 237000 songs lyrics. The Lyrics dataset is enriched with song titles, artist names, and song genres from other datasets. The final database can be used for the analysis of lyrics within songs across different dimensions.
 
 Here is an example Tableau dashboard built with data from the final database:
 - Average occurrence of words 'Friend' and 'Enemy' in songs in each genre (Folk is the friendliest - though, we are not analyzing the sentiment and it's just a word occurrence).
