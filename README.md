@@ -10,7 +10,7 @@ Here is an example of Tableau dashboard, built with data from the final database
 ![Dashboard](https://github.com/s-illia/LyricsWordPipelineExample/blob/main/TABLEAU_DASHBOARD.png?raw=true)
 
 ## Workflow
-
+![Workflow](https://github.com/s-illia/LyricsWordPipelineExample/blob/main/diagram.png?raw=true)
 ### AWS 
 Required datasets are downloaded using AWS Lambda. Python function is using SSM Parameter Store to get the configuration - URLs, formats, schema. Simple transformations are made - only required columns are extracted where possible, datasets are converted into unified CSV format. The CSV files are stored on an S3 bucket. Lambda is scheduled in EventBridge to constantly check for updates.
 
